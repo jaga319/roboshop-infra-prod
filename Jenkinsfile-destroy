@@ -1,0 +1,79 @@
+pipeline {
+  agent {
+    node {
+        label 'AGENT-1'
+    }
+  } 
+  options{
+        timeout(time: 1,unit:'HOURS')
+        disableConcurrentBuilds()
+        ansiColor('xterm')
+
+
+    }
+    // Build //
+    stages {
+        stage('DB ALB') {
+            parallel {
+                stage('DB') {
+                    steps {
+                    sh """
+                        cd 04-database
+                        terraform destroy -auto-approve
+                        """
+                    }
+                }
+                stage('ALB') {
+                    steps {
+                    sh """
+                        cd 05-APP-ALB
+                        terraform destroy -auto-approve
+                        """
+                    }
+                }
+            }
+        }
+         stage('VPN') {
+            steps {
+                sh """
+                    cd 03-vpn
+                    terraform destroy -auto-approve
+                """
+            }
+        }
+        stage('SG') {
+            steps {
+                sh """
+                    cd 02-SG
+                    terraform destroy -auto-approve
+                """
+            }
+        }
+        stage('VPC') {
+            steps {
+                sh """
+                    cd 01-vpc
+                    terraform destroy -auto-approve
+                """
+            }
+        }
+        
+       
+        
+    }  
+        
+      
+    // post build 
+     post { 
+        always { 
+
+            echo 'I will always run'
+        }
+        failure{
+            echo 'job is failed , creating an alarm'
+        }
+        success{
+            echo 'job completed successfully'
+        }
+    }
+}
